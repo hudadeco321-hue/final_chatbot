@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مساعد اللابتوبات</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #f4f6f8; }
+
+    #chat-widget {
+      position: fixed; bottom: 24px; left: 24px;
+      z-index: 9999; display: flex; flex-direction: column; align-items: flex-end;
+    }
+
+    #chat-toggle {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #1a73e8; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: background 0.2s;
+    }
+    #chat-toggle:hover { background: #1558b0; }
+    #chat-toggle svg { width: 26px; height: 26px; fill: white; }
+
+    #chat-box {
+      width: 360px; background: white; border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      display: flex; flex-direction: column; overflow: hidden;
+      margin-bottom: 12px;
+      transform-origin: bottom right;
+      transition: transform 0.2s, opacity 0.2s;
+      max-height: 520px;
+    }
+    #chat-box.hidden { transform: scale(0.9); opacity: 0; pointer-events: none; }
+
+    #chat-header {
+      background: #1a73e8; color: white;
+      padding: 14px 16px; font-size: 15px; font-weight: 600;
+      display: flex; align-items: center; gap: 10px;
+    }
+    #chat-header .dot { width: 10px; height: 10px; background: #4cef99; border-radius: 50%; }
+    #chat-header .subtitle { font-size: 11px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+
+    #chat-messages {
+      flex: 1; overflow-y: auto; padding: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+      min-height: 300px; max-height: 380px;
+    }
+
+    .msg {
+      max-width: 85%; padding: 10px 14px; border-radius: 14px;
+      font-size: 14px; line-height: 1.55; word-break: break-word;
+    }
+    .msg.bot { background: #f0f4ff; color: #1a1a2e; align-self: flex-start; border-bottom-right-radius: 4px; }
+    .msg.user { background: #1a73e8; color: white; align-self: flex-end; border-bottom-left-radius: 4px; }
+    .msg.typing { color: #888; font-style: italic; font-size: 13px; }
+
+    .msg-meta {
+      font-size: 11px; color: #aaa; margin-top: 4px;
+      align-self: flex-start; padding-right: 4px;
+    }
+
+    #chat-input-row {
+      display: flex; gap: 8px; padding: 12px;
+      border-top: 1px solid #eee;
+    }
+    #chat-input {
+      flex: 1; padding: 10px 14px; border: 1.5px solid #ddd;
+      border-radius: 24px; font-size: 14px; outline: none;
+      transition: border-color 0.2s; font-family: inherit; direction: auto;
+    }
+    #chat-input:focus { border-color: #1a73e8; }
+
+    #send-btn {
+      width: 40px; height: 40px; background: #1a73e8;
+      border: none; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.2s;
+    }
+    #send-btn:hover { background: #1558b0; }
+    #send-btn:disabled { background: #ccc; cursor: not-allowed; }
+    #send-btn svg { width: 18px; height: 18px; fill: white; }
+
+    /* Quick suggestion chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+    .chip {
+      font-size: 12px; padding: 5px 12px; border-radius: 20px;
+      border: 1px solid #1a73e8; color: #1a73e8; background: white;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .chip:hover { background: #e8f0fe; }
+  </style>
+</head>
+<body>
+
+<div id="chat-widget">
+  <div id="chat-box" class="hidden">
+    <div id="chat-header">
+      <div class="dot"></div>
+      <div>
+        مساعد اللابتوبات
+        <div class="subtitle">Egypt Smart Sales</div>
+      </div>
+    </div>
+
+    <div id="chat-messages">
+      <div class="msg bot">أهلاً! أنا هساعدك تلاقي أنسب لابتوب 💻<br>قولي ميزانيتك واحتياجك.</div>
+    </div>
+
+    <!-- Quick chips -->
+    <div class="chips" id="chips">
+      <button class="chip" onclick="quickSend('عايز لاب للجيمنج')">🎮 جيمنج</button>
+      <button class="chip" onclick="quickSend('عايز لاب للشغل والأوفيس')">💼 شغل</button>
+      <button class="chip" onclick="quickSend('عايز لاب للدراسة برميزانية محدودة')">📚 دراسة</button>
+      <button class="chip" onclick="quickSend('أحسن لاب MacBook عندكم')">🍎 ماك</button>
+    </div>
+
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" placeholder="اكتب رسالتك..." />
+      <button id="send-btn">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <button id="chat-toggle" title="تحدث مع المساعد">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+  </button>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────
+  const API_URL = "http://localhost:8000/chat"; // ← غيّره لـ URL السيرفر
+
+  // ── State ───────────────────────────────────────────────────
+  let history = [];
+  let isOpen  = false;
+
+  // ── Elements ────────────────────────────────────────────────
+  const chatBox   = document.getElementById("chat-box");
+  const messages  = document.getElementById("chat-messages");
+  const inputEl   = document.getElementById("chat-input");
+  const sendBtn   = document.getElementById("send-btn");
+  const toggleBtn = document.getElementById("chat-toggle");
+  const chipsEl   = document.getElementById("chips");
+
+  toggleBtn.addEventListener("click", () => {
+    isOpen = !isOpen;
+    chatBox.classList.toggle("hidden", !isOpen);
+    if (isOpen) inputEl.focus();
+  });
+
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  sendBtn.addEventListener("click", sendMessage);
+
+  function quickSend(text) {
+    inputEl.value = text;
+    sendMessage();
+    chipsEl.style.display = "none"; // إخفاء الـ chips بعد أول رسالة
+  }
+
+  function addMessage(text, role, meta = "") {
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+    div.innerHTML = text.replace(/\n/g, "<br>");
+    messages.appendChild(div);
+
+    if (meta) {
+      const m = document.createElement("div");
+      m.className = "msg-meta";
+      m.textContent = meta;
+      messages.appendChild(m);
+    }
+
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || sendBtn.disabled) return;
+
+    addMessage(text, "user");
+    inputEl.value = "";
+    sendBtn.disabled = true;
+
+    history.push({ role: "user", text });
+
+    const typing = addMessage("جاري البحث في قاعدة البيانات...", "bot typing");
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history: history.slice(0, -1) })
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+
+      typing.remove();
+
+      // meta: عدد الأجهزة اللي اتجلبت من الداتابيز
+      const meta = data.results > 0 ? `وجدت ${data.results} جهاز مناسب` : "";
+      addMessage(data.reply, "bot", meta);
+
+      history.push({ role: "assistant", text: data.reply });
+
+    } catch (err) {
+      typing.remove();
+      addMessage("حصل خطأ في الاتصال بالسيرفر. جرب تاني ✋", "bot");
+      console.error(err);
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+</script>
+</body>
+</html>
